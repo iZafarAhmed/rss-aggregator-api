@@ -34,11 +34,11 @@ export default async function handler(req, res) {
     const promises = CRYPTO_SOURCES.map(src => fetchFeed(src, 10));
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
-    const tech = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const crypto = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Update shared cache
     if (global.rssCache) {
-      global.rssCache.tech = crypto;
+      global.rssCache.crypto = crypto;
     } else {
       global.rssCache = { news: [], crypto };
     }
@@ -60,4 +60,5 @@ export default async function handler(req, res) {
     console.error(e);
     res.status(500).json({ error: 'Aggregation failed' });
   }
+
 }
