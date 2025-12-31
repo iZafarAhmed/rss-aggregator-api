@@ -6,6 +6,7 @@ let cacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 export default async function handler(req, res) {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
@@ -33,28 +34,30 @@ export default async function handler(req, res) {
       });
     }
 
-    // Fetch fresh
+    // Fetch fresh data
     const promises = NEWS_SOURCES.map(src => fetchFeed(src, 6)); // fetch extra for dedupe
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
     const news = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    cache = { news, tech: [] }; // update full cache
+    // Update global cache (shared with tech.js if needed)
+    cache = { news };
     cacheTime = Date.now();
 
+    // Apply source filter if provided
     let filtered = news;
     if (sourcesFilter) {
       filtered = news.filter(item => sourcesFilter.includes(item.source));
     }
 
-    res.json({
+    res.status(200).json({
       total: filtered.length,
       items: filtered.slice(0, limitNum),
       cached: false,
       updated_at: new Date().toISOString()
     });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Aggregation failed' });
+    console.error('News aggregation error:', e);
+    res.status(500).json({ error: 'Failed to fetch news' });
   }
 }
