@@ -13,8 +13,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { limit = 100, source: sourceParam } = req.query;
-  const limitNum = Math.min(Math.max(parseInt(limit) || 100, 1), 200);
+  const { limit = 200, source: sourceParam } = req.query;
+  const limitNum = Math.min(Math.max(parseInt(limit) || 200, 1), 200);
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const promises = CRYPTO_SOURCES.map(src => fetchFeed(src, 10));
+    const promises = CRYPTO_SOURCES.map(src => fetchFeed(src, 5));
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
     const crypto = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -62,3 +62,4 @@ export default async function handler(req, res) {
   }
 
 }
+
