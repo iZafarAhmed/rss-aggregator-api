@@ -13,8 +13,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { limit = 100, source: sourceParam } = req.query;
-  const limitNum = Math.min(Math.max(parseInt(limit) || 100, 1), 200);
+  const { limit = 200, source: sourceParam } = req.query;
+  const limitNum = Math.min(Math.max(parseInt(limit) || 200, 1), 200);
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
