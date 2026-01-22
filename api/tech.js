@@ -49,7 +49,22 @@ export default async function handler(req, res) {
     if (sourcesFilter) {
       filtered = tech.filter(item => sourcesFilter.includes(item.source));
     }
-
+    // ✅ KEYWORD FILTER
+    if (keyword) {
+      const terms = keyword
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      
+      if (terms.length > 0) {
+        filtered = filtered.filter(item =>
+          terms.some(term =>
+            (item.title && item.title.toLowerCase().includes(term.toLowerCase())) ||
+            (item.description && item.description.toLowerCase().includes(term.toLowerCase()))
+          )
+        );
+      }
+    }
     res.json({
       total: filtered.length,
       items: filtered.slice(0, limitNum),
