@@ -49,7 +49,22 @@ export default async function handler(req, res) {
     if (sourcesFilter) {
       filtered = news.filter(item => sourcesFilter.includes(item.source));
     }
+    // ✅ Apply keyword filter (case-insensitive, supports multiple terms)
+    if (keyword) {
+      const terms = keyword
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0);
 
+      if (terms.length > 0) {
+        filtered = filtered.filter(item =>
+          terms.some(term =>
+            (item.title && item.title.toLowerCase().includes(term)) ||
+            (item.description && item.description.toLowerCase().includes(term))
+          )
+        );
+      }
+    }
     res.status(200).json({
       total: filtered.length,
       items: filtered.slice(0, limitNum),
