@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   // Parse query params
-  const { limit = 200, source: sourceParam } = req.query;
+  const { limit = 200, source: sourceParam, q: keyword } = req.query;
   const limitNum = Math.min(Math.max(parseInt(limit) || 200, 1), 200);
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
