@@ -15,7 +15,7 @@ app.use((req, res, next) => {
 });
 
 // Cache setup
-let cache = { news: null, tech: null };
+let cache = { news: null, tech: null, crypto: null, business: null };
 let cacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -158,7 +158,7 @@ app.get('/api/crypto', async (req, res) => {
     const promises = CRYPTO_SOURCES.map(src => fetchFeed(src, 10));
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
-    const tech = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const crypto = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     cache.crypto = crypto;
     cacheTime = Date.now();
@@ -192,7 +192,7 @@ app.get('/api/crypto', async (req, res) => {
   }
 });
 
-// === /api/crypto endpoint ===
+// === /api/business endpoint ===
 app.get('/api/business', async (req, res) => {
   const { limit = 100, source: sourceParam, q: keyword } = req.query;
   const limitNum = Math.min(Math.max(parseInt(limit) || 100, 1), 200);
@@ -215,9 +215,9 @@ app.get('/api/business', async (req, res) => {
     const promises = BUSINESS_SOURCES.map(src => fetchFeed(src, 10));
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
-    const tech = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const business = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    cache.business = crypto;
+    cache.business = business;
     cacheTime = Date.now();
 
     let filtered = business;
