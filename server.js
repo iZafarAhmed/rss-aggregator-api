@@ -1,7 +1,7 @@
 // server.js
 const express = require('express');
 const cors = require('cors');
-const { NEWS_SOURCES, TECH_SOURCES, fetchFeed, dedupe } = require('./lib/aggregator');
+const { NEWS_SOURCES, TECH_SOURCES, CRYPTO_SOURCES, BUSINESS_SOURCES fetchFeed, dedupe } = require('./lib/aggregator');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
