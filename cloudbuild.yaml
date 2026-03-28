@@ -1,0 +1,38 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/newsdeck-jrgzv/cloud-run-source-deploy/rss-aggregator:$SHORT_SHA', '.']
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/newsdeck-jrgzv/cloud-run-source-deploy/rss-aggregator:$SHORT_SHA']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'rss-aggregator'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/newsdeck-jrgzv/cloud-run-source-deploy/rss-aggregator:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--timeout'
+      - '60s'
+      - '--min-instances'
+      - '1'
+
+images:
+  - 'us-central1-docker.pkg.dev/newsdeck-jrgzv/cloud-run-source-deploy/rss-aggregator:$SHORT_SHA'
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE: rss-aggregator
