@@ -7,7 +7,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/newsdeck-jrgzv/rss-aggregator:$SHORT_SHA']
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run (without IAM binding)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -20,15 +20,15 @@ steps:
       - 'us-central1'
       - '--platform'
       - 'managed'
-      - '--allow-unauthenticated'
       - '--memory'
       - '512Mi'
       - '--cpu'
       - '1'
       - '--timeout'
-      - '60s'
+      - '300s'
       - '--min-instances'
       - '1'
+      - '--no-allow-unauthenticated'
 
 options:
   default_logs_bucket_behavior: REGIONAL_USER_OWNED_BUCKET
