@@ -4,7 +4,11 @@ const cors = require('cors');
 const { NEWS_SOURCES, TECH_SOURCES, CRYPTO_SOURCES, BUSINESS_SOURCES, fetchFeed, dedupe } = require('./lib/aggregator');
 
 const app = express();
+
+// Cloud Run sets PORT environment variable
 const PORT = process.env.PORT || 8080;
+
+console.log(`Starting server on port ${PORT}...`);
 
 // Middleware
 app.use(cors());
@@ -19,13 +23,17 @@ let cache = { news: null, tech: null, crypto: null, business: null };
 let cacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), port: PORT });
+});
+
 // === /api/news endpoint ===
 app.get('/api/news', async (req, res) => {
   const { limit = 100, source: sourceParam, q: keyword } = req.query;
   const limitNum = Math.min(Math.max(parseInt(limit) || 100, 1), 200);
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
   try {
-    // Use cache if valid and no keyword
     if (!keyword && cache.news && Date.now() - cacheTime < CACHE_TTL) {
       let results = cache.news;
       if (sourcesFilter) {
@@ -33,7 +41,6 @@ app.get('/api/news', async (req, res) => {
       }
       return res.json({ total: results.length, items: results.slice(0, limitNum), cached: true, updated_at: new Date(cacheTime).toISOString() });
     }
-    // Fetch fresh
     const promises = NEWS_SOURCES.map(src => fetchFeed(src, 10));
     const allItems = (await Promise.all(promises)).flat();
     const deduped = dedupe(allItems);
@@ -124,7 +131,7 @@ app.get('/api/crypto', async (req, res) => {
     }
     res.json({ total: filtered.length, items: filtered.slice(0, limitNum), cached: false, updated_at: new Date().toISOString() });
   } catch (e) {
-    console.error('crypto error:', e);
+    console.error('Crypto error:', e);
     res.status(500).json({ error: 'Aggregation failed' });
   }
 });
@@ -160,17 +167,21 @@ app.get('/api/business', async (req, res) => {
     }
     res.json({ total: filtered.length, items: filtered.slice(0, limitNum), cached: false, updated_at: new Date().toISOString() });
   } catch (e) {
-    console.error('business error:', e);
+    console.error('Business error:', e);
     res.status(500).json({ error: 'Aggregation failed' });
   }
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Start listening
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 RSS Aggregator API running on port ${PORT}`);
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 RSS Aggregator API running on port ${PORT}`);
+// Handle shutdown gracefully
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
