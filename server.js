@@ -14,10 +14,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// Cache setup
+// Cache setup — per category
 let cache = { news: null, tech: null, crypto: null, business: null };
-let cacheTime = 0;
+let cacheTimestamps = { news: 0, tech: 0, crypto: 0, business: 0 };
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Helper: apply keyword filter safely
+function applyKeywordFilter(items, keyword) {
+  if (!keyword) return items;
+  const terms = keyword
+    .split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(t => t.length > 0);
+  if (terms.length === 0) return items;
+  return items.filter(item =>
+    terms.some(term =>
+      (item.title && item.title.toLowerCase().includes(term)) ||
+      (item.description && item.description.toLowerCase().includes(term))
+    )
+  );
+}
+
+// Helper: apply source filter
+function applySourceFilter(items, sourcesFilter) {
+  if (!sourcesFilter) return items;
+  return items.filter(item => sourcesFilter.includes(item.source));
+}
 
 // === /api/news endpoint ===
 app.get('/api/news', async (req, res) => {
@@ -26,45 +48,36 @@ app.get('/api/news', async (req, res) => {
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
-    // Use cache if valid and no keyword
-    if (!keyword && cache.news && Date.now() - cacheTime < CACHE_TTL) {
+    const now = Date.now();
+    // Use cache only if no keyword and not expired
+    if (!keyword && cache.news && (now - cacheTimestamps.news) < CACHE_TTL) {
       let results = cache.news;
-      if (sourcesFilter) {
-        results = results.filter(item => sourcesFilter.includes(item.source));
-      }
+      results = applySourceFilter(results, sourcesFilter);
+      results = applyKeywordFilter(results, keyword);
       return res.json({
         total: results.length,
         items: results.slice(0, limitNum),
         cached: true,
-        updated_at: new Date(cacheTime).toISOString()
+        updated_at: new Date(cacheTimestamps.news).toISOString()
       });
     }
 
-    // Fetch fresh
-    const promises = NEWS_SOURCES.map(src => fetchFeed(src, 10));
-    const allItems = (await Promise.all(promises)).flat();
+    // Fetch with error resilience
+    const results = await Promise.allSettled(NEWS_SOURCES.map(src => fetchFeed(src, 10)));
+    const allItems = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
     const deduped = dedupe(allItems);
     const news = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+    // Update cache
     cache.news = news;
-    cacheTime = Date.now();
+    cacheTimestamps.news = now;
 
     let filtered = news;
-    if (sourcesFilter) {
-      filtered = news.filter(item => sourcesFilter.includes(item.source));
-    }
-
-    if (keyword) {
-      const terms = keyword.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
-      if (terms.length > 0) {
-        filtered = filtered.filter(item =>
-          terms.some(term =>
-            (item.title && item.title.toLowerCase().includes(term)) ||
-            (item.description && item.description.toLowerCase().includes(term))
-          )
-        );
-      }
-    }
+    filtered = applySourceFilter(filtered, sourcesFilter);
+    filtered = applyKeywordFilter(filtered, keyword);
 
     res.json({
       total: filtered.length,
@@ -85,43 +98,33 @@ app.get('/api/tech', async (req, res) => {
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
-    if (!keyword && cache.tech && Date.now() - cacheTime < CACHE_TTL) {
+    const now = Date.now();
+    if (!keyword && cache.tech && (now - cacheTimestamps.tech) < CACHE_TTL) {
       let results = cache.tech;
-      if (sourcesFilter) {
-        results = results.filter(item => sourcesFilter.includes(item.source));
-      }
+      results = applySourceFilter(results, sourcesFilter);
+      results = applyKeywordFilter(results, keyword);
       return res.json({
         total: results.length,
         items: results.slice(0, limitNum),
         cached: true,
-        updated_at: new Date(cacheTime).toISOString()
+        updated_at: new Date(cacheTimestamps.tech).toISOString()
       });
     }
 
-    const promises = TECH_SOURCES.map(src => fetchFeed(src, 10));
-    const allItems = (await Promise.all(promises)).flat();
+    const results = await Promise.allSettled(TECH_SOURCES.map(src => fetchFeed(src, 10)));
+    const allItems = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
     const deduped = dedupe(allItems);
     const tech = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     cache.tech = tech;
-    cacheTime = Date.now();
+    cacheTimestamps.tech = now;
 
     let filtered = tech;
-    if (sourcesFilter) {
-      filtered = tech.filter(item => sourcesFilter.includes(item.source));
-    }
-
-    if (keyword) {
-      const terms = keyword.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
-      if (terms.length > 0) {
-        filtered = filtered.filter(item =>
-          terms.some(term =>
-            (item.title && item.title.toLowerCase().includes(term)) ||
-            (item.description && item.description.toLowerCase().includes(term))
-          )
-        );
-      }
-    }
+    filtered = applySourceFilter(filtered, sourcesFilter);
+    filtered = applyKeywordFilter(filtered, keyword);
 
     res.json({
       total: filtered.length,
@@ -142,43 +145,33 @@ app.get('/api/crypto', async (req, res) => {
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
-    if (!keyword && cache.crypto && Date.now() - cacheTime < CACHE_TTL) {
+    const now = Date.now();
+    if (!keyword && cache.crypto && (now - cacheTimestamps.crypto) < CACHE_TTL) {
       let results = cache.crypto;
-      if (sourcesFilter) {
-        results = results.filter(item => sourcesFilter.includes(item.source));
-      }
+      results = applySourceFilter(results, sourcesFilter);
+      results = applyKeywordFilter(results, keyword);
       return res.json({
         total: results.length,
         items: results.slice(0, limitNum),
         cached: true,
-        updated_at: new Date(cacheTime).toISOString()
+        updated_at: new Date(cacheTimestamps.crypto).toISOString()
       });
     }
 
-    const promises = CRYPTO_SOURCES.map(src => fetchFeed(src, 10));
-    const allItems = (await Promise.all(promises)).flat();
+    const results = await Promise.allSettled(CRYPTO_SOURCES.map(src => fetchFeed(src, 10)));
+    const allItems = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
     const deduped = dedupe(allItems);
     const crypto = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     cache.crypto = crypto;
-    cacheTime = Date.now();
+    cacheTimestamps.crypto = now;
 
     let filtered = crypto;
-    if (sourcesFilter) {
-      filtered = crypto.filter(item => sourcesFilter.includes(item.source));
-    }
-
-    if (keyword) {
-      const terms = keyword.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
-      if (terms.length > 0) {
-        filtered = filtered.filter(item =>
-          terms.some(term =>
-            (item.title && item.title.toLowerCase().includes(term)) ||
-            (item.description && item.description.toLowerCase().includes(term))
-          )
-        );
-      }
-    }
+    filtered = applySourceFilter(filtered, sourcesFilter);
+    filtered = applyKeywordFilter(filtered, keyword);
 
     res.json({
       total: filtered.length,
@@ -187,7 +180,7 @@ app.get('/api/crypto', async (req, res) => {
       updated_at: new Date().toISOString()
     });
   } catch (e) {
-    console.error('crypto error:', e);
+    console.error('Crypto error:', e);
     res.status(500).json({ error: 'Aggregation failed' });
   }
 });
@@ -199,43 +192,33 @@ app.get('/api/business', async (req, res) => {
   const sourcesFilter = sourceParam ? sourceParam.split(',').map(s => s.trim()) : null;
 
   try {
-    if (!keyword && cache.business && Date.now() - cacheTime < CACHE_TTL) {
+    const now = Date.now();
+    if (!keyword && cache.business && (now - cacheTimestamps.business) < CACHE_TTL) {
       let results = cache.business;
-      if (sourcesFilter) {
-        results = results.filter(item => sourcesFilter.includes(item.source));
-      }
+      results = applySourceFilter(results, sourcesFilter);
+      results = applyKeywordFilter(results, keyword);
       return res.json({
         total: results.length,
         items: results.slice(0, limitNum),
         cached: true,
-        updated_at: new Date(cacheTime).toISOString()
+        updated_at: new Date(cacheTimestamps.business).toISOString()
       });
     }
 
-    const promises = BUSINESS_SOURCES.map(src => fetchFeed(src, 10));
-    const allItems = (await Promise.all(promises)).flat();
+    const results = await Promise.allSettled(BUSINESS_SOURCES.map(src => fetchFeed(src, 10)));
+    const allItems = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value);
+
     const deduped = dedupe(allItems);
     const business = deduped.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     cache.business = business;
-    cacheTime = Date.now();
+    cacheTimestamps.business = now;
 
     let filtered = business;
-    if (sourcesFilter) {
-      filtered = business.filter(item => sourcesFilter.includes(item.source));
-    }
-
-    if (keyword) {
-      const terms = keyword.split(',').map(t => t.trim().toLowerCase()).filter(t => t);
-      if (terms.length > 0) {
-        filtered = filtered.filter(item =>
-          terms.some(term =>
-            (item.title && item.title.toLowerCase().includes(term)) ||
-            (item.description && item.description.toLowerCase().includes(term))
-          )
-        );
-      }
-    }
+    filtered = applySourceFilter(filtered, sourcesFilter);
+    filtered = applyKeywordFilter(filtered, keyword);
 
     res.json({
       total: filtered.length,
@@ -244,7 +227,7 @@ app.get('/api/business', async (req, res) => {
       updated_at: new Date().toISOString()
     });
   } catch (e) {
-    console.error('business error:', e);
+    console.error('Business error:', e);
     res.status(500).json({ error: 'Aggregation failed' });
   }
 });
