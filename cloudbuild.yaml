@@ -30,6 +30,9 @@ steps:
       - '--min-instances'
       - '1'
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 images:
   - 'us-central1-docker.pkg.dev/newsdeck-jrgzv/cloud-run-source-deploy/rss-aggregator:$SHORT_SHA'
 
